@@ -2,6 +2,7 @@ package gee
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 )
 
@@ -26,6 +27,7 @@ func New() *Engine {
 
 func (engine *Engine) addRoute(method string, pattern string, handler HandlerFunc) {
 	key := method + "-" + pattern
+	log.Printf("Route %4s - %s", method, pattern)
 	engine.router[key] = handler
 }
 
@@ -48,12 +50,13 @@ func (engine *Engine) Run(addr string) (err error) {
 // 解析请求的路径，查找路由映射表
 // 如果找到，执行注册的处理方法
 // 找不到，404
-func (engine *Engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	key := req.Method + "-" + req.URL.Path
+func (engine *Engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	key := r.Method + "-" + r.URL.Path
 	if handler, ok := engine.router[key]; ok {
-		handler(w, req)
+		handler(w, r)
 	} else {
-		fmt.Fprintf(w, "404 NOT FOUND: %s\n", req.URL)
+		w.WriteHeader(http.StatusNotFound) // 设置返回码
+		fmt.Fprintf(w, "404 NOT FOUND: %s\n", r.URL)
 	}
 
 }
