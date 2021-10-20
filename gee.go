@@ -1,13 +1,12 @@
 package gee
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 )
 
 // HandlerFunc 定义请求用的handler
-type HandlerFunc func(http.ResponseWriter, *http.Request)
+type HandlerFunc func(*Context)
 
 // Engine 实现ServeHTTP接口
 type Engine struct {
@@ -15,20 +14,19 @@ type Engine struct {
 	// 例如GET-/、GET-/hello、POST-/hello，
 	// 针对相同的路由，如果请求方法不同,可以映射不同的处理方法(Handler)，
 	// value 用户映射的处理方法。
-	router map[string]HandlerFunc
+	router *router
 }
 
 // 构造函数
 func New() *Engine {
 	return &Engine{
-		router: make(map[string]HandlerFunc),
+		router: newRouter(),
 	}
 }
 
 func (engine *Engine) addRoute(method string, pattern string, handler HandlerFunc) {
-	key := method + "-" + pattern
 	log.Printf("Route %4s - %s", method, pattern)
-	engine.router[key] = handler
+	engine.router.addRoute(method, pattern, handler)
 }
 
 // GET 请求
@@ -47,16 +45,11 @@ func (engine *Engine) Run(addr string) (err error) {
 	return http.ListenAndServe(addr, engine)
 }
 
+// 接管所有的 HTTP 请求
 // 解析请求的路径，查找路由映射表
 // 如果找到，执行注册的处理方法
 // 找不到，404
 func (engine *Engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	key := r.Method + "-" + r.URL.Path
-	if handler, ok := engine.router[key]; ok {
-		handler(w, r)
-	} else {
-		w.WriteHeader(http.StatusNotFound) // 设置返回码
-		fmt.Fprintf(w, "404 NOT FOUND: %s\n", r.URL)
-	}
-
+	c := newContent(w, r)
+	engine.router.handle(c)
 }
